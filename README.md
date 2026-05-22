@@ -8,7 +8,7 @@ This project is a SQL Server-backed secure fashion e-commerce management system 
 - Parameterized SQL queries through the `mssql` driver
 - Password hashing with bcrypt
 - HTTP hardening with Helmet and login rate limiting
-- Audit logging for product and order actions
+- Audit logging for login, logout, product, and order actions
 - SQL Server scripts for schema, sample data, roles, views, row-level security, dynamic data masking, triggers, backup, and encryption notes
 - Simple web UI for report screenshots: add product, delete product, add another product, create order, view audit logs
 
@@ -261,4 +261,24 @@ The application has three roles. The UI disables actions that the logged-in role
 | Admin | Yes | Yes | No | Yes | Yes |
 | InventoryOfficer | Yes | No | No | No | Yes |
 | Customer | No | No | Yes | No | No |
+
+## Audit Log Coverage
+
+The `AuditLog` table records important security and business actions, including:
+
+- Successful and failed login attempts
+- Logout actions
+- Product creation
+- Product deletion
+- Order creation
+- Product updates through SQL trigger
+- Order inserts through SQL trigger
+
+Admins can view recent audit records from the website using **Load Audit Logs**, or directly in SSMS:
+
+```sql
+USE SecureECommerce;
+SELECT * FROM AuditLog
+ORDER BY EventTime DESC;
+```
 
