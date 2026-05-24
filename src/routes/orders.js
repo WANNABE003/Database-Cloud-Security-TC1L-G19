@@ -11,19 +11,23 @@ const orderSchema = z.object({
   shippingAddress: z.string().min(10).max(255)
 });
 
-router.get("/", requireAuth(["Customer", "Admin"]), async (req, res, next) => {
+const statusSchema = z.object({
+  status: z.enum(["Paid", "Cancelled"])
+});
+
+router.get("/", requireAuth(["Customer", "InventoryOfficer", "Admin"]), async (req, res, next) => {
   try {
-    const isAdmin = req.user.role === "Admin";
+    const isStaff = req.user.role === "Admin" || req.user.role === "InventoryOfficer";
     const result = await query(
       `SELECT o.OrderID, o.UserID, o.TotalAmount, o.Status, o.ShippingAddress, o.CreatedAt,
               oi.ProductID, oi.Quantity, oi.UnitPrice, p.Name AS ProductName
        FROM CustomerOrder o
        INNER JOIN OrderItem oi ON o.OrderID = oi.OrderID
        INNER JOIN Product p ON oi.ProductID = p.ProductID
-       WHERE (@isAdmin = 1 OR o.UserID = @userId)
+       WHERE (@isStaff = 1 OR o.UserID = @userId)
        ORDER BY o.CreatedAt DESC`,
       {
-        isAdmin: { type: sql.Bit, value: isAdmin },
+        isStaff: { type: sql.Bit, value: isStaff },
         userId: { type: sql.NVarChar(50), value: req.user.userId }
       }
     );
@@ -99,6 +103,81 @@ router.post("/", requireAuth(["Customer"]), async (req, res, next) => {
       }
     }
     if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid order data" });
+    return next(error);
+  }
+});
+
+router.patch("/:id/status", requireAuth(["InventoryOfficer", "Admin"]), async (req, res, next) => {
+  const pool = await getPool();
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    const body = statusSchema.parse(req.body);
+    await transaction.begin();
+
+    const orderRequest = new sql.Request(transaction);
+    orderRequest.input("orderId", sql.NVarChar(50), req.params.id);
+    const orderResult = await orderRequest.query(
+      `SELECT OrderID, Status
+       FROM CustomerOrder WITH (UPDLOCK, ROWLOCK)
+       WHERE OrderID = @orderId`
+    );
+
+    const order = orderResult.recordset[0];
+    if (!order) {
+      await transaction.rollback();
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    if (order.Status !== "Pending") {
+      await transaction.rollback();
+      return res.status(400).json({ error: "Only pending orders can be approved or rejected." });
+    }
+
+    const statusRequest = new sql.Request(transaction);
+    statusRequest.input("orderId", sql.NVarChar(50), req.params.id);
+    statusRequest.input("status", sql.NVarChar(30), body.status);
+    await statusRequest.query(
+      `UPDATE CustomerOrder
+       SET Status = @status, UpdatedAt = SYSUTCDATETIME()
+       WHERE OrderID = @orderId`
+    );
+
+    if (body.status === "Cancelled") {
+      const restoreRequest = new sql.Request(transaction);
+      restoreRequest.input("orderId", sql.NVarChar(50), req.params.id);
+      await restoreRequest.query(
+        `UPDATE p
+         SET p.StockQty = p.StockQty + oi.Quantity,
+             p.IsActive = 1,
+             p.UpdatedAt = SYSUTCDATETIME()
+         FROM Product p
+         INNER JOIN OrderItem oi ON p.ProductID = oi.ProductID
+         WHERE oi.OrderID = @orderId`
+      );
+    }
+
+    await transaction.commit();
+    await audit({
+      actorId: req.user.userId,
+      actorRole: req.user.role,
+      action: body.status === "Paid" ? "OrderApproved" : "OrderRejected",
+      targetType: "Order",
+      targetId: req.params.id,
+      status: "Success",
+      ipAddress: req.ip
+    });
+
+    return res.json({ orderId: req.params.id, status: body.status });
+  } catch (error) {
+    if (transaction._aborted !== true) {
+      try {
+        await transaction.rollback();
+      } catch {
+        // Ignore rollback failure after SQL Server has already aborted the transaction.
+      }
+    }
+    if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid order status" });
     return next(error);
   }
 });

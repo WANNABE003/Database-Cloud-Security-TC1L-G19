@@ -1,6 +1,7 @@
 const productRows = document.querySelector("#productRows");
 const productGrid = document.querySelector("#productGrid");
 const orderRows = document.querySelector("#orderRows");
+const staffOrderRows = document.querySelector("#staffOrderRows");
 const cartRows = document.querySelector("#cartRows");
 const cartCount = document.querySelector("#cartCount");
 const sessionLabel = document.querySelector("#sessionLabel");
@@ -8,6 +9,8 @@ const toast = document.querySelector("#toast");
 const securityOutput = document.querySelector("#securityOutput");
 const productForm = document.querySelector("#productForm");
 const orderForm = document.querySelector("#orderForm");
+const userForm = document.querySelector("#userForm");
+const clearUserFormBtn = document.querySelector("#clearUserFormBtn");
 const loginForm = document.querySelector("#loginForm");
 const registerForm = document.querySelector("#registerForm");
 const authTitle = document.querySelector("#authTitle");
@@ -15,16 +18,23 @@ const authHint = document.querySelector("#authHint");
 const demoUsers = document.querySelector("#demoUsers");
 const auditBtn = document.querySelector("#auditBtn");
 const customersBtn = document.querySelector("#customersBtn");
+const logoutBtn = document.querySelector("#logoutBtn");
 const authScreen = document.querySelector("#authScreen") || document.querySelector("#signin");
 const appShell = document.querySelector("#appShell");
+const heroSection = document.querySelector(".hero");
+const shopSection = document.querySelector("#shop");
+const approvalsSection = document.querySelector("#approvals");
+const usersSection = document.querySelector("#users");
 const filterButtons = [...document.querySelectorAll("[data-category]")];
 const ordersSection = document.querySelector('[data-role-section="orders"]');
 const staffSection = document.querySelector('[data-role-section="staff"]');
+const userRows = document.querySelector("#userRows");
 const navItems = [...document.querySelectorAll("[data-nav]")];
 const authTabs = [...document.querySelectorAll("[data-auth-mode]")];
 
 let currentUser = null;
 let products = [];
+let users = [];
 let cart = [];
 let activeCategory = "All";
 
@@ -57,22 +67,33 @@ function setFormDisabled(form, disabled) {
 function applyRoleUi(role) {
   const canManageProducts = role === "Admin" || role === "InventoryOfficer";
   const canCreateOrders = role === "Customer";
+  const canBrowseShop = role === "Customer";
+  const canApproveOrders = role === "Admin" || role === "InventoryOfficer";
+  const canManageUsers = role === "Admin";
   const canViewAudit = role === "Admin";
   const canViewMaskedCustomers = role === "Admin" || role === "InventoryOfficer";
 
+  heroSection.hidden = !canBrowseShop;
+  shopSection.hidden = !canBrowseShop;
+  approvalsSection.hidden = !canApproveOrders;
+  usersSection.hidden = !canManageUsers;
   ordersSection.hidden = role !== "Customer";
-  staffSection.hidden = !canManageProducts && !canViewMaskedCustomers;
+  staffSection.hidden = !canManageProducts && !canViewMaskedCustomers && !canApproveOrders;
   navItems.forEach((item) => {
     const target = item.dataset.nav;
     item.hidden =
       !role ||
+      (target === "shop" && !canBrowseShop) ||
       (target === "orders" && role !== "Customer") ||
+      (target === "approvals" && !canApproveOrders) ||
       (target === "manage" && !canManageProducts) ||
-      (target === "security" && !canViewMaskedCustomers);
+      (target === "security" && !canViewMaskedCustomers) ||
+      (target === "users" && !canManageUsers);
   });
 
   setFormDisabled(productForm, !canManageProducts);
   setFormDisabled(orderForm, !canCreateOrders);
+  setFormDisabled(userForm, !canManageUsers);
   auditBtn.disabled = !canViewAudit;
   customersBtn.disabled = !canViewMaskedCustomers;
   renderProducts();
@@ -82,6 +103,7 @@ function applyRoleUi(role) {
 function showApp(isSignedIn) {
   authScreen.hidden = isSignedIn;
   appShell.hidden = !isSignedIn;
+  logoutBtn.hidden = !isSignedIn;
 }
 
 function setAuthMode(mode) {
@@ -101,9 +123,12 @@ function setAuthMode(mode) {
 function resetSessionUi() {
   productRows.innerHTML = "";
   orderRows.innerHTML = "";
+  staffOrderRows.innerHTML = "";
+  userRows.innerHTML = "";
   securityOutput.textContent = "Security test output appears here.";
   productForm.reset();
   orderForm.reset();
+  userForm.reset();
   cart = [];
   renderCart();
 }
@@ -268,18 +293,95 @@ async function loadProducts() {
 }
 
 async function loadOrders() {
-  if (!currentUser || !["Customer", "Admin"].includes(currentUser.role)) {
+  if (!currentUser) {
     orderRows.innerHTML = "";
+    staffOrderRows.innerHTML = "";
     return;
   }
 
   const data = await api("/api/orders");
   orderRows.innerHTML = "";
-  data.orders.forEach((order) => {
+  staffOrderRows.innerHTML = "";
+
+  if (currentUser.role === "Customer") {
+    data.orders.forEach((order) => {
+      const item = document.createElement("div");
+      item.textContent = `${order.OrderID} - ${order.ProductName} x ${order.Quantity} - RM ${Number(order.TotalAmount).toFixed(2)} - ${order.Status}`;
+      orderRows.append(item);
+    });
+    return;
+  }
+
+  if (!["Admin", "InventoryOfficer"].includes(currentUser.role)) return;
+
+  if (data.orders.length === 0) {
     const item = document.createElement("div");
-    item.textContent = `${order.OrderID} - ${order.ProductName} x ${order.Quantity} - RM ${Number(order.TotalAmount).toFixed(2)} - ${order.Status}`;
-    orderRows.append(item);
+    item.className = "empty-state";
+    item.textContent = "No customer orders found.";
+    staffOrderRows.append(item);
+    return;
+  }
+
+  data.orders.forEach((order) => {
+    const isPending = order.Status === "Pending";
+    const statusLabel = order.Status === "Paid" ? "Approved" : order.Status === "Cancelled" ? "Rejected" : order.Status;
+    const item = document.createElement("div");
+    item.className = "approval-item";
+    item.innerHTML = `
+      <div>
+        <strong>${order.OrderID} - ${order.ProductName}</strong>
+        <span>${order.UserID} · Qty ${order.Quantity} · RM ${Number(order.TotalAmount).toFixed(2)} · ${order.Status}</span>
+      </div>
+      ${
+        isPending
+          ? `<div class="approval-actions">
+              <button data-order-status="Paid" data-order-id="${order.OrderID}" type="button">Approve</button>
+              <button class="danger" data-order-status="Cancelled" data-order-id="${order.OrderID}" type="button">Reject</button>
+            </div>`
+          : `<span class="status-pill">${statusLabel}</span>`
+      }
+    `;
+    staffOrderRows.append(item);
   });
+}
+
+function renderUsers() {
+  userRows.innerHTML = "";
+
+  if (users.length === 0) {
+    userRows.innerHTML = `<tr><td colspan="6">No users found.</td></tr>`;
+    return;
+  }
+
+  users.forEach((user) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${user.UserID}</td>
+      <td>${user.FirstName} ${user.LastName}</td>
+      <td>${user.Email}</td>
+      <td>${user.Role}</td>
+      <td>${user.IsActive ? "Active" : "Inactive"}</td>
+      <td>
+        <div class="row-actions">
+          <button data-user-edit="${user.UserID}" type="button">Edit</button>
+          <button class="danger" data-user-delete="${user.UserID}" type="button" ${user.UserID === currentUser?.userId ? "disabled" : ""}>Delete</button>
+        </div>
+      </td>
+    `;
+    userRows.append(row);
+  });
+}
+
+async function loadUsers() {
+  if (currentUser?.role !== "Admin") {
+    users = [];
+    renderUsers();
+    return;
+  }
+
+  const data = await api("/api/users");
+  users = data.users;
+  renderUsers();
 }
 
 loginForm.addEventListener("submit", async (event) => {
@@ -293,10 +395,15 @@ loginForm.addEventListener("submit", async (event) => {
     showToast("Signed in");
     const user = await loadMe();
     prepareRoleInputs(user?.role);
-    await Promise.allSettled([loadProducts(), loadOrders()]);
+    await Promise.allSettled([loadProducts(), loadOrders(), loadUsers()]);
   } catch (error) {
     showToast(error.message);
   }
+});
+
+clearUserFormBtn.addEventListener("click", () => {
+  userForm.reset();
+  userForm.elements.userId.value = "";
 });
 
 registerForm.addEventListener("submit", async (event) => {
@@ -330,7 +437,7 @@ document.querySelectorAll(".quick-login").forEach((button) => {
   });
 });
 
-document.querySelector("#logoutBtn").addEventListener("click", async () => {
+logoutBtn.addEventListener("click", async () => {
   try {
     await api("/api/auth/logout", { method: "POST" });
     sessionLabel.textContent = "Not signed in";
@@ -466,6 +573,70 @@ productRows.addEventListener("click", async (event) => {
   }
 });
 
+userRows.addEventListener("click", async (event) => {
+  const editButton = event.target.closest("[data-user-edit]");
+  const deleteButton = event.target.closest("[data-user-delete]");
+
+  if (editButton) {
+    const user = users.find((entry) => entry.UserID === editButton.dataset.userEdit);
+    if (!user) return;
+
+    userForm.elements.userId.value = user.UserID;
+    userForm.elements.role.value = user.Role;
+    userForm.elements.email.value = user.Email;
+    userForm.elements.firstName.value = user.FirstName;
+    userForm.elements.lastName.value = user.LastName;
+    userForm.elements.phoneNumber.value = user.PhoneNumber || "";
+    userForm.elements.addressLine1.value = user.AddressLine1 || "";
+    userForm.elements.city.value = user.City || "";
+    userForm.elements.state.value = user.State || "";
+    userForm.elements.postcode.value = user.Postcode || "";
+    userForm.elements.password.value = "";
+    userForm.elements.isActive.value = user.IsActive ? "true" : "false";
+    userForm.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+
+  if (!deleteButton) return;
+
+  try {
+    await api(`/api/users/${deleteButton.dataset.userDelete}`, { method: "DELETE" });
+    showToast("User deleted");
+    await loadUsers();
+  } catch (error) {
+    showToast(error.message);
+  }
+});
+
+userForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = new FormData(event.currentTarget);
+  const userId = form.get("userId");
+
+  if (!userId) {
+    showToast("Select a user to edit first.");
+    return;
+  }
+
+  const payload = Object.fromEntries(form);
+  delete payload.userId;
+  if (!payload.password) delete payload.password;
+  payload.isActive = payload.isActive === "true";
+
+  try {
+    await api(`/api/users/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    });
+    showToast("User updated");
+    userForm.reset();
+    userForm.elements.userId.value = "";
+    await loadUsers();
+  } catch (error) {
+    showToast(error.message);
+  }
+});
+
 orderForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
@@ -490,6 +661,22 @@ orderForm.addEventListener("submit", async (event) => {
     showToast("Order placed");
     cart = [];
     orderForm.reset();
+    await Promise.allSettled([loadProducts(), loadOrders(), loadUsers()]);
+  } catch (error) {
+    showToast(error.message);
+  }
+});
+
+staffOrderRows.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-order-status]");
+  if (!button) return;
+
+  try {
+    const data = await api(`/api/orders/${button.dataset.orderId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: button.dataset.orderStatus })
+    });
+    showToast(data.status === "Paid" ? "Order approved" : "Order rejected");
     await Promise.allSettled([loadProducts(), loadOrders()]);
   } catch (error) {
     showToast(error.message);
@@ -522,5 +709,5 @@ setAuthMode("login");
 showApp(false);
 loadMe().then(async (user) => {
   prepareRoleInputs(user?.role);
-  await Promise.allSettled([loadProducts(), loadOrders()]);
+  await Promise.allSettled([loadProducts(), loadOrders(), loadUsers()]);
 });

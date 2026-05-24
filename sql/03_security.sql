@@ -91,7 +91,7 @@ AS
 RETURN
     SELECT 1 AS fn_result
     WHERE @UserID = CONVERT(NVARCHAR(50), SESSION_CONTEXT(N'user_id'))
-       OR CONVERT(NVARCHAR(30), SESSION_CONTEXT(N'user_role')) = 'Admin';
+       OR CONVERT(NVARCHAR(30), SESSION_CONTEXT(N'user_role')) IN ('Admin', 'InventoryOfficer');
 GO
 
 CREATE SECURITY POLICY Security.OrderAccessPolicy

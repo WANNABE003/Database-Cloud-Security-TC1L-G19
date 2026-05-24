@@ -644,6 +644,17 @@ input {
   font: inherit;
 }
 
+select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+}
+
 input:focus {
   outline: none;
   border-color: var(--accent);
@@ -656,7 +667,8 @@ input:user-invalid {
 }
 
 button:disabled,
-input:disabled {
+input:disabled,
+select:disabled {
   cursor: not-allowed;
   opacity: 0.55;
   transform: none;
@@ -665,6 +677,13 @@ input:disabled {
 
 input:disabled {
   background: var(--soft);
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 22px;
+  padding-top: 0;
 }
 
 .stock-delete {
@@ -731,6 +750,7 @@ tr:hover td {
 }
 
 .cart-item,
+.approval-item,
 .compact-list div,
 .empty-state {
   padding: 12px;
@@ -746,7 +766,21 @@ tr:hover td {
   align-items: center;
 }
 
+.approval-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
 .cart-item span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.approval-item span {
   display: block;
   margin-top: 3px;
   color: var(--muted);
@@ -759,7 +793,26 @@ tr:hover td {
   justify-content: flex-end;
 }
 
+.approval-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .cart-actions button {
+  min-height: 32px;
+  padding: 6px 10px;
+}
+
+.approval-actions button,
+.row-actions button {
   min-height: 32px;
   padding: 6px 10px;
 }
@@ -856,7 +909,8 @@ pre {
 
   .section-heading,
   .panel-heading,
-  .cart-item {
+  .cart-item,
+  .approval-item {
     align-items: flex-start;
     flex-direction: column;
   }
