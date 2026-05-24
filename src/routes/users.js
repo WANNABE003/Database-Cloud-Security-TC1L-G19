@@ -54,7 +54,7 @@ router.patch("/:id", requireAuth(["Admin"]), async (req, res, next) => {
            Postcode = @postcode,
            PasswordHash = COALESCE(@passwordHash, PasswordHash),
            IsActive = @isActive,
-           UpdatedAt = SYSUTCDATETIME()
+           UpdatedAt = DATEADD(HOUR, 8, SYSUTCDATETIME())
        WHERE UserID = @userId`,
       {
         userId: { type: sql.NVarChar(50), value: req.params.id },
@@ -101,7 +101,7 @@ router.delete("/:id", requireAuth(["Admin"]), async (req, res, next) => {
 
     const result = await query(
       `UPDATE AppUser
-       SET IsActive = 0, UpdatedAt = SYSUTCDATETIME()
+       SET IsActive = 0, UpdatedAt = DATEADD(HOUR, 8, SYSUTCDATETIME())
        WHERE UserID = @userId`,
       { userId: { type: sql.NVarChar(50), value: req.params.id } }
     );

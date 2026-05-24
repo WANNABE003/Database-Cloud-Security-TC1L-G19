@@ -42,8 +42,9 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    INSERT INTO dbo.AuditLog (ActorID, ActorRole, Action, TargetType, TargetID, Status, IpAddress)
+    INSERT INTO dbo.AuditLog (EventTime, ActorID, ActorRole, Action, TargetType, TargetID, Status, IpAddress)
     SELECT
+        DATEADD(HOUR, 8, SYSUTCDATETIME()),
         COALESCE(CONVERT(NVARCHAR(50), SESSION_CONTEXT(N'actor_id')), 'sql-trigger'),
         COALESCE(CONVERT(NVARCHAR(30), SESSION_CONTEXT(N'actor_role')), 'Database'),
         'ProductUpdated',
@@ -62,8 +63,9 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    INSERT INTO dbo.AuditLog (ActorID, ActorRole, Action, TargetType, TargetID, Status, IpAddress)
+    INSERT INTO dbo.AuditLog (EventTime, ActorID, ActorRole, Action, TargetType, TargetID, Status, IpAddress)
     SELECT
+        DATEADD(HOUR, 8, SYSUTCDATETIME()),
         inserted.UserID,
         'Customer',
         'OrderInserted',

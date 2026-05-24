@@ -71,14 +71,14 @@ router.post("/", requireAuth(["Customer"]), async (req, res, next) => {
     orderRequest.input("unitPrice", sql.Decimal(18, 2), product.Price);
 
     await orderRequest.query(
-      `INSERT INTO CustomerOrder (OrderID, UserID, TotalAmount, Status, ShippingAddress)
-       VALUES (@orderId, @userId, @total, 'Pending', @shippingAddress);
+      `INSERT INTO CustomerOrder (OrderID, UserID, TotalAmount, Status, ShippingAddress, CreatedAt)
+       VALUES (@orderId, @userId, @total, 'Pending', @shippingAddress, DATEADD(HOUR, 8, SYSUTCDATETIME()));
 
        INSERT INTO OrderItem (OrderID, ProductID, Quantity, UnitPrice)
        VALUES (@orderId, @productId, @quantity, @unitPrice);
 
        UPDATE Product
-       SET StockQty = StockQty - @quantity, UpdatedAt = SYSUTCDATETIME()
+       SET StockQty = StockQty - @quantity, UpdatedAt = DATEADD(HOUR, 8, SYSUTCDATETIME())
        WHERE ProductID = @productId;`
     );
 
@@ -139,7 +139,7 @@ router.patch("/:id/status", requireAuth(["InventoryOfficer", "Admin"]), async (r
     statusRequest.input("status", sql.NVarChar(30), body.status);
     await statusRequest.query(
       `UPDATE CustomerOrder
-       SET Status = @status, UpdatedAt = SYSUTCDATETIME()
+       SET Status = @status, UpdatedAt = DATEADD(HOUR, 8, SYSUTCDATETIME())
        WHERE OrderID = @orderId`
     );
 
@@ -150,7 +150,7 @@ router.patch("/:id/status", requireAuth(["InventoryOfficer", "Admin"]), async (r
         `UPDATE p
          SET p.StockQty = p.StockQty + oi.Quantity,
              p.IsActive = 1,
-             p.UpdatedAt = SYSUTCDATETIME()
+             p.UpdatedAt = DATEADD(HOUR, 8, SYSUTCDATETIME())
          FROM Product p
          INNER JOIN OrderItem oi ON p.ProductID = oi.ProductID
          WHERE oi.OrderID = @orderId`

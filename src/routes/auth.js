@@ -33,9 +33,9 @@ router.post("/register", async (req, res, next) => {
 
     await query(
       `INSERT INTO AppUser
-       (UserID, Role, Email, FirstName, LastName, PhoneNumber, AddressLine1, City, State, Postcode, PasswordHash)
+       (UserID, Role, Email, FirstName, LastName, PhoneNumber, AddressLine1, City, State, Postcode, PasswordHash, CreatedAt)
        VALUES
-       (@userId, 'Customer', @email, @firstName, @lastName, @phoneNumber, @addressLine1, @city, @state, @postcode, @passwordHash)`,
+       (@userId, 'Customer', @email, @firstName, @lastName, @phoneNumber, @addressLine1, @city, @state, @postcode, @passwordHash, DATEADD(HOUR, 8, SYSUTCDATETIME()))`,
       {
         userId: { type: sql.NVarChar(50), value: userId },
         email: { type: sql.NVarChar(255), value: email },

@@ -16,6 +16,7 @@ SecureStyle is a SQL Server-backed fashion e-commerce management system for CCS6
 - Parameterized SQL queries through the `mssql` driver
 - HTTP hardening with Helmet and login rate limiting
 - SQL Server scripts for schema, seed data, roles, views, row-level security, dynamic data masking, triggers, TDE setup, and backup
+- Database timestamps are stored in Malaysia time (UTC+8)
 
 ## System Modules
 
@@ -246,6 +247,8 @@ The `AuditLog` table records important actions, including:
 - Order approval and rejection
 - Product updates through SQL trigger
 - Order inserts through SQL trigger
+
+Audit timestamps and app-created `CreatedAt` / `UpdatedAt` values use Malaysia time (UTC+8).
 
 Admins can view recent audit records in the website or directly in SSMS:
 

@@ -37,8 +37,8 @@ router.post("/", requireAuth(["InventoryOfficer", "Admin"]), async (req, res, ne
     const productId = `PRD-${Date.now()}`;
 
     await query(
-      `INSERT INTO Product (ProductID, Name, SKU, Price, StockQty, Category, CreatedBy)
-       VALUES (@productId, @name, @sku, @price, @stockQty, @category, @createdBy)`,
+      `INSERT INTO Product (ProductID, Name, SKU, Price, StockQty, Category, CreatedBy, CreatedAt)
+       VALUES (@productId, @name, @sku, @price, @stockQty, @category, @createdBy, DATEADD(HOUR, 8, SYSUTCDATETIME()))`,
       {
         productId: { type: sql.NVarChar(50), value: productId },
         name: { type: sql.NVarChar(120), value: body.name },
@@ -91,7 +91,7 @@ router.delete("/:id", requireAuth(["Admin"]), async (req, res, next) => {
       `UPDATE Product
        SET StockQty = @remainingStock,
            IsActive = CASE WHEN @remainingStock = 0 THEN 0 ELSE IsActive END,
-           UpdatedAt = SYSUTCDATETIME()
+           UpdatedAt = DATEADD(HOUR, 8, SYSUTCDATETIME())
        WHERE ProductID = @productId AND IsActive = 1`,
       {
         productId: { type: sql.NVarChar(50), value: req.params.id },

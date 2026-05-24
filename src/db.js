@@ -42,8 +42,8 @@ async function query(text, params = {}) {
 
 async function audit({ actorId, actorRole, action, targetType, targetId, status, ipAddress }) {
   await query(
-    `INSERT INTO AuditLog (ActorID, ActorRole, Action, TargetType, TargetID, Status, IpAddress)
-     VALUES (@actorId, @actorRole, @action, @targetType, @targetId, @status, @ipAddress)`,
+    `INSERT INTO AuditLog (EventTime, ActorID, ActorRole, Action, TargetType, TargetID, Status, IpAddress)
+     VALUES (DATEADD(HOUR, 8, SYSUTCDATETIME()), @actorId, @actorRole, @action, @targetType, @targetId, @status, @ipAddress)`,
     {
       actorId: { type: sql.NVarChar(50), value: actorId || "anonymous" },
       actorRole: { type: sql.NVarChar(30), value: actorRole || "Guest" },
