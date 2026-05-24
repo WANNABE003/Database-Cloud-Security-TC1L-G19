@@ -48,10 +48,10 @@
           <button class="auth-tab" data-auth-mode="register" type="button">Register</button>
         </div>
         <h2 id="authTitle">Welcome Back</h2>
-        <p class="hint" id="authHint">Use your assigned demo account to access the correct role view.</p>
+        <p class="hint" id="authHint">Sign in with your account to access your role view.</p>
         <form id="loginForm" data-auth-panel="login">
-          <label>Email <input name="email" type="email" value="admin@securecart.local" required /></label>
-          <label>Password <input name="password" type="password" value="Password@123" required /></label>
+          <label>Email <input name="email" type="email" placeholder="you@example.com" required /></label>
+          <label>Password <input name="password" type="password" placeholder="Enter password" required /></label>
           <button type="submit">Sign in</button>
         </form>
         <form id="registerForm" data-auth-panel="register" hidden>
@@ -70,11 +70,6 @@
           <label>Postcode <input name="postcode" placeholder="Postcode" minlength="4" maxlength="12" title="Postcode must be 4 to 12 characters." required /><small>4 to 12 characters.</small></label>
           <button type="submit">Create Customer Account</button>
         </form>
-        <div class="demo-users" id="demoUsers">
-          <button class="quick-login" data-email="admin@securecart.local" type="button">Admin</button>
-          <button class="quick-login" data-email="officer@securecart.local" type="button">Inventory</button>
-          <button class="quick-login" data-email="customer@securecart.local" type="button">Customer</button>
-        </div>
       </div>
     </section>
 

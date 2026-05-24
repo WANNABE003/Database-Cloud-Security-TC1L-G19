@@ -16,7 +16,6 @@ const loginForm = document.querySelector("#loginForm");
 const registerForm = document.querySelector("#registerForm");
 const authTitle = document.querySelector("#authTitle");
 const authHint = document.querySelector("#authHint");
-const demoUsers = document.querySelector("#demoUsers");
 const auditBtn = document.querySelector("#auditBtn");
 const customersBtn = document.querySelector("#customersBtn");
 const logoutBtn = document.querySelector("#logoutBtn");
@@ -135,11 +134,10 @@ function setAuthMode(mode) {
   const isRegister = mode === "register";
   loginForm.hidden = isRegister;
   registerForm.hidden = !isRegister;
-  demoUsers.hidden = isRegister;
   authTitle.textContent = isRegister ? "Create Account" : "Welcome Back";
   authHint.textContent = isRegister
     ? "Register a customer account to shop and place orders."
-    : "Use your assigned demo account to access the correct role view.";
+    : "Sign in with your account to access your role view.";
   authTabs.forEach((button) => {
     button.classList.toggle("active", button.dataset.authMode === mode);
   });
@@ -457,14 +455,6 @@ registerForm.addEventListener("submit", async (event) => {
 
 authTabs.forEach((button) => {
   button.addEventListener("click", () => setAuthMode(button.dataset.authMode));
-});
-
-document.querySelectorAll(".quick-login").forEach((button) => {
-  button.addEventListener("click", () => {
-    setAuthMode("login");
-    loginForm.elements.email.value = button.dataset.email;
-    loginForm.elements.password.value = "Password@123";
-  });
 });
 
 logoutBtn.addEventListener("click", async () => {
