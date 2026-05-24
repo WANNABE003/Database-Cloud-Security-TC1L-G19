@@ -11,6 +11,7 @@ const productForm = document.querySelector("#productForm");
 const orderForm = document.querySelector("#orderForm");
 const userForm = document.querySelector("#userForm");
 const clearUserFormBtn = document.querySelector("#clearUserFormBtn");
+const continueShoppingBtn = document.querySelector("#continueShoppingBtn");
 const loginForm = document.querySelector("#loginForm");
 const registerForm = document.querySelector("#registerForm");
 const authTitle = document.querySelector("#authTitle");
@@ -26,17 +27,20 @@ const shopSection = document.querySelector("#shop");
 const approvalsSection = document.querySelector("#approvals");
 const usersSection = document.querySelector("#users");
 const filterButtons = [...document.querySelectorAll("[data-category]")];
-const ordersSection = document.querySelector('[data-role-section="orders"]');
+const cartSection = document.querySelector('[data-role-section="cart"]');
+const historySection = document.querySelector('[data-role-section="history"]');
 const staffSection = document.querySelector('[data-role-section="staff"]');
 const userRows = document.querySelector("#userRows");
 const navItems = [...document.querySelectorAll("[data-nav]")];
 const authTabs = [...document.querySelectorAll("[data-auth-mode]")];
+const customerViewLinks = [...document.querySelectorAll("[data-customer-view]")];
 
 let currentUser = null;
 let products = [];
 let users = [];
 let cart = [];
 let activeCategory = "All";
+let activeCustomerView = "shop";
 
 function makeSku() {
   return `SKU-FSH-${Date.now().toString().slice(-5)}`;
@@ -46,6 +50,14 @@ function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
   setTimeout(() => toast.classList.remove("show"), 2600);
+}
+
+function setCustomerView(view) {
+  if (!["shop", "cart", "history"].includes(view) || currentUser?.role !== "Customer") return;
+  activeCustomerView = view;
+  applyRoleUi(currentUser.role);
+  if (view === "history") loadOrders();
+  if (view === "shop") loadProducts();
 }
 
 async function api(path, options = {}) {
@@ -81,22 +93,27 @@ function applyRoleUi(role) {
   const canViewAudit = role === "Admin";
   const canViewMaskedCustomers = role === "Admin" || role === "InventoryOfficer";
 
-  heroSection.hidden = !canBrowseShop;
-  shopSection.hidden = !canBrowseShop;
+  heroSection.hidden = !(canBrowseShop && activeCustomerView === "shop");
+  shopSection.hidden = !(canBrowseShop && activeCustomerView === "shop");
   approvalsSection.hidden = !canApproveOrders;
   usersSection.hidden = !canManageUsers;
-  ordersSection.hidden = role !== "Customer";
+  cartSection.hidden = !(role === "Customer" && activeCustomerView === "cart");
+  historySection.hidden = !(role === "Customer" && activeCustomerView === "history");
   staffSection.hidden = !canManageProducts && !canViewMaskedCustomers && !canApproveOrders;
   navItems.forEach((item) => {
     const target = item.dataset.nav;
     item.hidden =
       !role ||
       (target === "shop" && !canBrowseShop) ||
-      (target === "orders" && role !== "Customer") ||
+      (target === "cart" && role !== "Customer") ||
+      (target === "history" && role !== "Customer") ||
       (target === "approvals" && !canApproveOrders) ||
       (target === "manage" && !canManageProducts) ||
       (target === "security" && !canViewMaskedCustomers) ||
       (target === "users" && !canManageUsers);
+  });
+  customerViewLinks.forEach((item) => {
+    item.hidden = role !== "Customer";
   });
 
   setFormDisabled(productForm, !canManageProducts);
@@ -145,6 +162,7 @@ function resetSessionUi() {
 
 function prepareRoleInputs(role) {
   resetSessionUi();
+  activeCustomerView = "shop";
   applyRoleUi(role);
   if (role === "Admin" || role === "InventoryOfficer") {
     productForm.elements.sku.value = makeSku();
@@ -166,39 +184,6 @@ async function loadMe() {
   }
 }
 
-function productVisual(product) {
-  const category = product.Category || "Fashion";
-  const imageUrl = productImageUrl(product);
-  return `
-    <div class="product-art" data-category="${category}">
-      <img src="${imageUrl}" alt="${product.Name}" loading="lazy" />
-      <span>${category}</span>
-    </div>
-  `;
-}
-
-function productImageUrl(product) {
-  const name = `${product.Name || ""} ${product.Category || ""}`.toLowerCase();
-
-  if (name.includes("bag") || name.includes("crossbody")) {
-    return "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=900&q=80";
-  }
-
-  if (name.includes("blazer") || name.includes("outerwear") || name.includes("jacket")) {
-    return "https://images.unsplash.com/photo-1543076447-215ad9ba6923?auto=format&fit=crop&w=900&q=80";
-  }
-
-  if (name.includes("skirt")) {
-    return "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=900&q=80";
-  }
-
-  if (name.includes("dress")) {
-    return "https://images.unsplash.com/photo-1495385794356-15371f348c31?auto=format&fit=crop&w=900&q=80";
-  }
-
-  return "https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=900&q=80";
-}
-
 function filteredProducts() {
   if (activeCategory === "All") return products;
   return products.filter((product) => product.Category === activeCategory);
@@ -214,11 +199,11 @@ function renderProducts() {
   }
 
   visibleProducts.forEach((product) => {
+    const cartItem = cart.find((item) => item.productId === product.ProductID);
     const canAddToCart = currentUser?.role === "Customer" && Number(product.StockQty) > 0;
     const card = document.createElement("article");
     card.className = "product-card";
     card.innerHTML = `
-      ${productVisual(product)}
       <div class="product-copy">
         <div>
           <p class="product-category">${product.Category}</p>
@@ -227,7 +212,15 @@ function renderProducts() {
         <p class="product-meta">${product.SKU} · ${product.StockQty} in stock</p>
         <div class="product-footer">
           <strong>RM ${Number(product.Price).toFixed(2)}</strong>
-          <button data-cart="${product.ProductID}" type="button" ${canAddToCart ? "" : "disabled"}>Add to cart</button>
+          ${
+            cartItem
+              ? `<div class="cart-actions product-quantity">
+                  <button data-product-minus="${product.ProductID}" type="button">-</button>
+                  <span>${cartItem.quantity}</span>
+                  <button data-product-plus="${product.ProductID}" type="button" ${cartItem.quantity >= Number(product.StockQty) ? "disabled" : ""}>+</button>
+                </div>`
+              : `<button data-cart="${product.ProductID}" type="button" ${canAddToCart ? "" : "disabled"}>Add to cart</button>`
+          }
         </div>
       </div>
     `;
@@ -242,6 +235,16 @@ function renderProducts() {
       <td>${product.StockQty}</td>
       <td>
         <div class="stock-delete">
+          <input
+            aria-label="Quantity to add for ${product.Name}"
+            data-add-qty="${product.ProductID}"
+            type="number"
+            min="1"
+            step="1"
+            value="1"
+            ${["Admin", "InventoryOfficer"].includes(currentUser?.role) ? "" : "disabled"}
+          />
+          <button data-add-stock="${product.ProductID}" type="button" ${["Admin", "InventoryOfficer"].includes(currentUser?.role) ? "" : "disabled"}>Add Qty</button>
           <input
             aria-label="Quantity to delete for ${product.Name}"
             data-delete-qty="${product.ProductID}"
@@ -314,9 +317,25 @@ async function loadOrders() {
   staffOrderRows.innerHTML = "";
 
   if (currentUser.role === "Customer") {
-    data.orders.forEach((order) => {
+    if (data.orders.length === 0) {
       const item = document.createElement("div");
-      item.textContent = `${order.OrderID} - ${order.ProductName} x ${order.Quantity} - RM ${Number(order.TotalAmount).toFixed(2)} - ${order.Status}`;
+      item.className = "empty-state";
+      item.textContent = "No order history yet.";
+      orderRows.append(item);
+      return;
+    }
+
+    data.orders.forEach((order) => {
+      const statusLabel = order.Status === "Paid" ? "Approved" : order.Status === "Cancelled" ? "Rejected" : order.Status;
+      const item = document.createElement("div");
+      item.className = "approval-item";
+      item.innerHTML = `
+        <div>
+          <strong>${order.OrderID} - ${order.ProductName}</strong>
+          <span>Qty ${order.Quantity} · RM ${Number(order.TotalAmount).toFixed(2)} · ${statusLabel}</span>
+        </div>
+        <span class="status-pill">${statusLabel}</span>
+      `;
       orderRows.append(item);
     });
     return;
@@ -476,32 +495,59 @@ filterButtons.forEach((button) => {
   });
 });
 
+[...navItems, ...customerViewLinks].forEach((link) => {
+  link.addEventListener("click", () => {
+    const view = link.dataset.nav || link.dataset.customerView;
+    setCustomerView(view);
+  });
+});
+
+continueShoppingBtn.addEventListener("click", () => {
+  setCustomerView("shop");
+});
+
 productGrid.addEventListener("click", (event) => {
   const button = event.target.closest("[data-cart]");
-  if (!button) return;
+  const plus = event.target.closest("[data-product-plus]");
+  const minus = event.target.closest("[data-product-minus]");
+  if (!button && !plus && !minus) return;
 
   if (currentUser?.role !== "Customer") {
     showToast("Sign in as Customer to add products to cart.");
     return;
   }
 
-  const product = products.find((entry) => entry.ProductID === button.dataset.cart);
+  const productId = button?.dataset.cart || plus?.dataset.productPlus || minus?.dataset.productMinus;
+  const product = products.find((entry) => entry.ProductID === productId);
   if (!product || Number(product.StockQty) < 1) {
     showToast("This product is out of stock.");
     return;
   }
 
   const existing = cart.find((item) => item.productId === product.ProductID);
-  if (existing) {
+  if (button && existing) {
+    return;
+  }
+
+  if (plus && existing) {
     if (existing.quantity >= Number(product.StockQty)) {
       showToast("No more stock available for this item.");
       return;
     }
     existing.quantity += 1;
-  } else {
+  } else if (minus && existing) {
+    existing.quantity -= 1;
+  } else if (button) {
     cart.push({ productId: product.ProductID, quantity: 1 });
   }
+
+  if (existing?.quantity < 1) {
+    cart = cart.filter((entry) => entry.productId !== product.ProductID);
+  }
+
+  renderProducts();
   renderCart();
+  if (button) setCustomerView("cart");
 });
 
 cartRows.addEventListener("click", (event) => {
@@ -531,6 +577,7 @@ cartRows.addEventListener("click", (event) => {
     cart = cart.filter((entry) => entry.productId !== productId);
   }
 
+  renderProducts();
   renderCart();
 });
 
@@ -556,7 +603,30 @@ productForm.addEventListener("submit", async (event) => {
 });
 
 productRows.addEventListener("click", async (event) => {
+  const addButton = event.target.closest("[data-add-stock]");
   const button = event.target.closest("[data-delete]");
+  if (addButton) {
+    const qtyInput = productRows.querySelector(`[data-add-qty="${addButton.dataset.addStock}"]`);
+    const quantity = Number(qtyInput?.value);
+
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      showToast("Add quantity must be at least 1.");
+      return;
+    }
+
+    try {
+      const data = await api(`/api/products/${addButton.dataset.addStock}/stock`, {
+        method: "PATCH",
+        body: JSON.stringify({ quantity })
+      });
+      showToast(`${data.addedStock} unit(s) added`);
+      await loadProducts();
+    } catch (error) {
+      showToast(error.message);
+    }
+    return;
+  }
+
   if (!button) return;
   const product = products.find((entry) => entry.ProductID === button.dataset.delete);
   const qtyInput = productRows.querySelector(`[data-delete-qty="${button.dataset.delete}"]`);
@@ -674,6 +744,8 @@ orderForm.addEventListener("submit", async (event) => {
     showToast("Order placed");
     cart = [];
     orderForm.reset();
+    activeCustomerView = "history";
+    applyRoleUi(currentUser.role);
     await Promise.allSettled([loadProducts(), loadOrders(), loadUsers()]);
   } catch (error) {
     showToast(error.message);

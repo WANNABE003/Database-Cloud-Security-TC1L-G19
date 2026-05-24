@@ -17,7 +17,8 @@
       </a>
       <nav class="nav-links" aria-label="Main navigation">
         <a href="#shop" data-nav="shop">Shop</a>
-        <a href="#orders" data-nav="orders">Orders</a>
+        <a href="#cart" data-nav="cart">Cart</a>
+        <a href="#history" data-nav="history">History</a>
         <a href="#approvals" data-nav="approvals">Approvals</a>
         <a href="#manage" data-nav="manage">Manage</a>
         <a href="#security" data-nav="security">Security</a>
@@ -84,8 +85,8 @@
           <h1>Shop curated fashion with secure order handling.</h1>
           <p class="hero-text">Browse boutique pieces, place customer orders, and let staff manage inventory with role-based controls and SQL-backed audit evidence.</p>
           <div class="hero-actions">
-            <a class="button-link" href="#shop">Browse products</a>
-            <a class="button-link secondary-link" href="#orders">Checkout</a>
+            <a class="button-link" href="#shop" data-customer-view="shop">Browse products</a>
+            <a class="button-link secondary-link" href="#cart" data-customer-view="cart">Checkout</a>
           </div>
         </div>
         <div class="hero-visual" aria-label="Fashion product preview">
@@ -117,8 +118,8 @@
         <div id="productGrid" class="product-grid"></div>
       </section>
 
-      <section class="dashboard-grid" data-role-section="orders">
-        <section class="panel cart-panel" id="orders">
+      <section class="dashboard-grid" data-role-section="cart">
+        <section class="panel cart-panel" id="cart">
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Checkout</p>
@@ -127,10 +128,25 @@
             <span id="cartCount" class="status-pill">0 items</span>
           </div>
           <div id="cartRows" class="cart-list"></div>
+          <div class="actions">
+            <button class="ghost-button" id="continueShoppingBtn" type="button">Continue shopping</button>
+          </div>
           <form id="orderForm" class="checkout-form">
             <label>Shipping Address <input name="shippingAddress" placeholder="Enter delivery address" required /></label>
             <button type="submit">Place Order</button>
           </form>
+        </section>
+      </section>
+
+      <section class="dashboard-grid" data-role-section="history">
+        <section class="panel" id="history">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Buyer</p>
+              <h2>Order History</h2>
+            </div>
+            <span class="status-pill">Customer only</span>
+          </div>
           <div id="orderRows" class="compact-list"></div>
         </section>
       </section>
@@ -214,7 +230,14 @@
             <label>SKU <input name="sku" placeholder="Auto generated for staff" required /></label>
             <label>Price <input name="price" type="number" min="0.01" step="0.01" placeholder="0.00" required /></label>
             <label>Stock <input name="stockQty" type="number" min="0" step="1" placeholder="0" required /></label>
-            <label>Category <input name="category" placeholder="Dresses, Bags, Outerwear" required /></label>
+            <label>Category
+              <select name="category" required>
+                <option value="Dresses">Dresses</option>
+                <option value="Outerwear">Outerwear</option>
+                <option value="Bags">Bags</option>
+                <option value="Skirts">Skirts</option>
+              </select>
+            </label>
             <button type="submit">Insert Product</button>
           </form>
           <div class="table-wrap">

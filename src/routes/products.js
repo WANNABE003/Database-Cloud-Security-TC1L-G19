@@ -10,10 +10,14 @@ const productSchema = z.object({
   sku: z.string().min(3).max(40),
   price: z.number().positive(),
   stockQty: z.number().int().min(0),
-  category: z.string().min(2).max(80)
+  category: z.enum(["Dresses", "Outerwear", "Bags", "Skirts"])
 });
 
 const deleteStockSchema = z.object({
+  quantity: z.number().int().positive()
+});
+
+const addStockSchema = z.object({
   quantity: z.number().int().positive()
 });
 
@@ -113,6 +117,39 @@ router.delete("/:id", requireAuth(["Admin"]), async (req, res, next) => {
     return res.json({ ok: true, remainingStock });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: "Delete quantity must be at least 1." });
+    return next(error);
+  }
+});
+
+router.patch("/:id/stock", requireAuth(["InventoryOfficer", "Admin"]), async (req, res, next) => {
+  try {
+    const body = addStockSchema.parse(req.body);
+    const result = await query(
+      `UPDATE Product
+       SET StockQty = StockQty + @quantity,
+           IsActive = 1,
+           UpdatedAt = DATEADD(HOUR, 8, SYSUTCDATETIME())
+       WHERE ProductID = @productId`,
+      {
+        productId: { type: sql.NVarChar(50), value: req.params.id },
+        quantity: { type: sql.Int, value: body.quantity }
+      }
+    );
+
+    await audit({
+      actorId: req.user.userId,
+      actorRole: req.user.role,
+      action: "ProductStockAdded",
+      targetType: "Product",
+      targetId: req.params.id,
+      status: result.rowsAffected[0] === 1 ? "Success" : "NotFound",
+      ipAddress: req.ip
+    });
+
+    if (result.rowsAffected[0] !== 1) return res.status(404).json({ error: "Product not found" });
+    return res.json({ ok: true, addedStock: body.quantity });
+  } catch (error) {
+    if (error instanceof z.ZodError) return res.status(400).json({ error: "Add quantity must be at least 1." });
     return next(error);
   }
 });
