@@ -161,7 +161,7 @@
             <label>City <input name="city" minlength="2" maxlength="80" required /></label>
             <label>State <input name="state" minlength="2" maxlength="80" required /></label>
             <label>Postcode <input name="postcode" minlength="4" maxlength="12" required /></label>
-            <label>New Password <input name="password" type="password" minlength="8" placeholder="Leave blank to keep current password" /><small>Optional. At least 8 characters if changed.</small></label>
+            <label>New Password <input name="password" type="password" minlength="8" placeholder="Current password is protected; leave blank to keep it" /><small>Optional. Existing passwords cannot be viewed because they are stored as bcrypt hashes.</small></label>
             <label>Active
               <select name="isActive" required>
                 <option value="true">Active</option>

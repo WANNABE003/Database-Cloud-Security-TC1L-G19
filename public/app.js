@@ -64,6 +64,14 @@ function setFormDisabled(form, disabled) {
   });
 }
 
+function setUserEditMode(isEditing) {
+  [...userForm.elements].forEach((element) => {
+    if (element.name === "userId") return;
+    element.disabled = !isEditing;
+  });
+  clearUserFormBtn.disabled = !isEditing;
+}
+
 function applyRoleUi(role) {
   const canManageProducts = role === "Admin" || role === "InventoryOfficer";
   const canCreateOrders = role === "Customer";
@@ -93,7 +101,7 @@ function applyRoleUi(role) {
 
   setFormDisabled(productForm, !canManageProducts);
   setFormDisabled(orderForm, !canCreateOrders);
-  setFormDisabled(userForm, !canManageUsers);
+  setUserEditMode(false);
   auditBtn.disabled = !canViewAudit;
   customersBtn.disabled = !canViewMaskedCustomers;
   renderProducts();
@@ -129,6 +137,8 @@ function resetSessionUi() {
   productForm.reset();
   orderForm.reset();
   userForm.reset();
+  userForm.elements.userId.value = "";
+  setUserEditMode(false);
   cart = [];
   renderCart();
 }
@@ -404,6 +414,7 @@ loginForm.addEventListener("submit", async (event) => {
 clearUserFormBtn.addEventListener("click", () => {
   userForm.reset();
   userForm.elements.userId.value = "";
+  setUserEditMode(false);
 });
 
 registerForm.addEventListener("submit", async (event) => {
@@ -593,6 +604,7 @@ userRows.addEventListener("click", async (event) => {
     userForm.elements.postcode.value = user.Postcode || "";
     userForm.elements.password.value = "";
     userForm.elements.isActive.value = user.IsActive ? "true" : "false";
+    setUserEditMode(true);
     userForm.scrollIntoView({ behavior: "smooth", block: "center" });
     return;
   }
@@ -631,6 +643,7 @@ userForm.addEventListener("submit", async (event) => {
     showToast("User updated");
     userForm.reset();
     userForm.elements.userId.value = "";
+    setUserEditMode(false);
     await loadUsers();
   } catch (error) {
     showToast(error.message);
@@ -705,6 +718,7 @@ customersBtn.addEventListener("click", async () => {
 
 resetSessionUi();
 applyRoleUi(null);
+setUserEditMode(false);
 setAuthMode("login");
 showApp(false);
 loadMe().then(async (user) => {
