@@ -236,32 +236,6 @@ a {
   gap: 10px;
 }
 
-.role-preview {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(140px, 1fr));
-  gap: 12px;
-  margin-top: 26px;
-}
-
-.role-preview div {
-  min-height: 116px;
-  padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.role-preview strong,
-.role-preview span {
-  display: block;
-}
-
-.role-preview span {
-  margin-top: 8px;
-  color: #faf4ef;
-  font-size: 13px;
-}
-
 .demo-users {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -850,9 +824,6 @@ pre {
     grid-template-columns: repeat(2, minmax(220px, 1fr));
   }
 
-  .role-preview {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 680px) {
