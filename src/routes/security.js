@@ -19,10 +19,28 @@ router.get("/audit", requireAuth(["Admin"]), async (req, res, next) => {
 
 router.get("/masked-customers", requireAuth(["InventoryOfficer", "Admin"]), async (req, res, next) => {
   try {
+    // Ensure a low-privilege database user exists to demonstrate Dynamic Data Masking.
+    // The application normally connects as 'sa' or an admin which bypasses DDM.
+    await query(`
+      IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'MaskedDemoUser')
+      BEGIN
+          CREATE USER MaskedDemoUser WITHOUT LOGIN;
+          ALTER ROLE InventoryOfficerRole ADD MEMBER MaskedDemoUser;
+      END
+    `);
+
     const result = await query(
-      `SELECT UserID, Role, Email, FirstName, LastName, PhoneNumber, AddressLine1, City, State
-       FROM vw_CustomersForStaff
-       WHERE (@isAdmin = 1 OR Role = 'Customer')`,
+      `BEGIN TRY
+           EXECUTE AS USER = 'MaskedDemoUser';
+           SELECT UserID, Role, Email, FirstName, LastName, PhoneNumber, AddressLine1, City, State
+           FROM vw_CustomersForStaff
+           WHERE (@isAdmin = 1 OR Role = 'Customer');
+           REVERT;
+       END TRY
+       BEGIN CATCH
+           REVERT;
+           THROW;
+       END CATCH`,
       { isAdmin: { type: sql.Bit, value: req.user.role === "Admin" } }
     );
     res.json({ customers: result.recordset });

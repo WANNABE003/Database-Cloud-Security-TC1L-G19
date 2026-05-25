@@ -771,7 +771,17 @@ auditBtn.addEventListener("click", async () => {
 customersBtn.addEventListener("click", async () => {
   try {
     const data = await api("/api/security/masked-customers");
-    securityOutput.textContent = JSON.stringify(data.customers, null, 2);
+    const customers = data.customers;
+    if (Array.isArray(customers) && customers.length > 0) {
+      // Build HTML table
+      const headers = Object.keys(customers[0]);
+      const headerRow = headers.map(h => `<th>${h}</th>`).join('');
+      const rows = customers.map(c => `<tr>${headers.map(h => `<td>${c[h] ?? ''}</td>`).join('')}</tr>`).join('');
+      securityOutput.textContent = JSON.stringify(data.customers, null, 2);
+
+    } else {
+      securityOutput.textContent = "No masked customer data available.";
+    }
   } catch (error) {
     securityOutput.textContent = "Security test output appears here.";
     showToast(error.message);
